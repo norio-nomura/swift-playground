@@ -1,0 +1,12 @@
+version: '3'
+services:
+  playground:
+    build: .
+    environment:
+      HOST_PWD: ${PWD}
+    ports:
+      - "80:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/playground
+    command: ["sh", "-c", "npm install && npm start"]

@@ -30,6 +30,7 @@ app.post('/run', function(req, res) {
   const path = require('path');
   const Sandbox = require('./sandbox');
 
+  const host_root_dir = process.env.HOST_PWD;
   const root_dir = __dirname;
   const temp_dir = path.join('temp', random(10));
   const filename = 'main.swift';
@@ -72,7 +73,7 @@ app.post('/run', function(req, res) {
     timeout = maxTimeout;
   }
 
-  const sandbox = new Sandbox(root_dir, temp_dir, filename, toolchain_version, command, options, code, timeout);
+  const sandbox = new Sandbox(host_root_dir, root_dir, temp_dir, filename, toolchain_version, command, options, code, timeout);
   sandbox.run(function(data, error, version) {
     res.send({ output: data, errors: error, version: version })
   });

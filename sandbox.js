@@ -1,6 +1,7 @@
 'use strict';
 
-const Sandbox = function(root_dir, temp_dir, filename, toolchain_version, command, options, code, timeout) {
+const Sandbox = function(host_root_dir, root_dir, temp_dir, filename, toolchain_version, command, options, code, timeout) {
+  this.host_root_dir = host_root_dir;
   this.root_dir = root_dir;
   this.temp_dir = temp_dir;
   this.filename = filename;
@@ -45,7 +46,7 @@ Sandbox.prototype.prepare = function(success) {
 }
 
 Sandbox.prototype.execute = function(success) {
-  const exec = require('child_process').exec;
+  const execFile = require('child_process').execFile;
   const execSync = require('child_process').spawnSync;
   const fs = require('fs');
   const path = require('path');
@@ -53,16 +54,24 @@ Sandbox.prototype.execute = function(success) {
   const sandbox = this;
   let counter = 0;
 
-  exec(['sh', path.join(this.root_dir, "run.sh"), this.timeout + 's', '-v', path.join(this.root_dir, this.temp_dir) + ':/usercode', '-v', path.join(this.root_dir, 'vendor') + ':/vendor:ro', 'kishikawakatsumi/swift-' + this.toolchain_version, 'sh', '/usercode/script.sh', [this.command, this.options].join(' ')].join(' '));
+  execFile(path.join(this.root_dir, "run.sh"), [this.timeout, '-v', path.join(this.host_root_dir, this.temp_dir) + ':/usercode', '-v', path.join(this.host_root_dir, 'vendor') + ':/vendor:ro', 'norionomura/swiftlint:swift-' + this.toolchain_version, 'sh', '/usercode/script.sh', this.command, this.options], (error, stdout, stderr) => {
+    if (error) {
+      console.error(`exec error: ${error}`);
+      return;
+    }
+    console.log(`stdout: ${stdout}`);
+    console.log(`stderr: ${stderr}`);
+  });
 
   const intid = setInterval(function() {
     counter = counter + 1;
     const work_dir = path.join(sandbox.root_dir, sandbox.temp_dir)
-    const version = fs.readFileSync(path.join(work_dir, 'version'), 'utf8');
     fs.readFile(path.join(work_dir, 'completed'), 'utf8', function(error, data) {
       if (error && counter < sandbox.timeout) {
         return;
-      } else if (counter < sandbox.timeout) {
+      }
+      const version = fs.readFileSync(path.join(work_dir, 'version'), 'utf8');
+      if (counter < sandbox.timeout) {
         fs.readFile(path.join(work_dir, 'errors'), 'utf8', function(error, errorlog) {
           if (!errorlog) {
             errorlog = ""
@@ -77,7 +86,7 @@ Sandbox.prototype.execute = function(success) {
           success(data, errorlog, version)
         });
       }
-      execSync('rm', ['-rf', sandbox.temp_dir]);
+      execSync('rm', ['-rf', work_dir]);
       clearInterval(intid);
     });
   }, 1000);
